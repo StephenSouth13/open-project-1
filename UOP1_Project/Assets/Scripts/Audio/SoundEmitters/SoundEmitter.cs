@@ -110,10 +110,14 @@ public class SoundEmitter : MonoBehaviour
 	}
 
 	public bool IsLooping()
-	{
-		return _audioSource.loop;
-	}
-
+    {
+        // BĂNG KEO CỨU MẠNG: Kẻo Unity dọn rác mất AudioSource mà game vẫn cố với tay lấy
+        if (_audioSource == null)
+        {
+            return false;
+        }
+        return _audioSource.loop;
+    }
 	IEnumerator FinishedPlaying(float clipLength)
 	{
 		yield return new WaitForSeconds(clipLength);
