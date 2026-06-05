@@ -771,7 +771,7 @@ PlayerSettings:
     Nintendo Switch: 
     PS4: 
     PS5: 
-    Standalone: 
+    Standalone: SENTIS_ANALYTICS_ENABLED
     WebGL: 
     Windows Store Apps: 
     XboxOne: 
