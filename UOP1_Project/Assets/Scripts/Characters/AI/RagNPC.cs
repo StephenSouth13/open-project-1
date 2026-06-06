@@ -1,3 +1,4 @@
+using TMPro;
 using System;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -5,60 +6,84 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 
-[System.Serializable]
-public class EmbedResponse { public EmbeddingData embedding; }
-[System.Serializable]
-public class EmbeddingData { public float[] values; }
-[System.Serializable]
-public class LoreChunk { public string text; public float[] vector; }
-[System.Serializable]
-public class GeminiResponse { public Candidate[] candidates; }
-[System.Serializable]
-public class Candidate { public Content content; }
-[System.Serializable]
-public class Content { public Part[] parts; }
-[System.Serializable]
-public class Part { public string text; }
+// --- CẤU TRÚC JSON CHO API ---
+[System.Serializable] public class EmbedResponse { public EmbeddingData embedding; }
+[System.Serializable] public class EmbeddingData { public float[] values; }
+[System.Serializable] public class GeminiResponse { public Candidate[] candidates; }
+[System.Serializable] public class Candidate { public Content content; }
+[System.Serializable] public class Content { public Part[] parts; }
+[System.Serializable] public class Part { public string text; }
+[System.Serializable] public class LoreChunk { public string text; public float[] vector; }
 
-// BẮT BUỘC GameObject này phải có component NPC đi kèm
-[RequireComponent(typeof(NPC))]
 public class RagNPC : MonoBehaviour
 {
     [Header("Cấu hình API")]
-    public string apiKey = "AQ.Ab8RN6K6jbPeZT8uHTPfdDweeXxQl4qtYrJIa3fVlShYVixBsw";
+    public string apiKey = "AQ.Ab8RN6KB4oNWLFDjtiU3olJdhpQTa55qp9giz6zuYGSZsTIFNw";
     private string embedUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent";
     private string chatUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
     [Header("Cơ sở dữ liệu (Vector Database)")]
     public List<LoreChunk> loreDatabase = new List<LoreChunk>();
 
-    [Header("UI Tương tác")]
+    [Header("UI Tương tác (Kéo thả từ Inspector)")]
     public Text dialogueUIText;
     public GameObject dialoguePanel;
+    public TMP_InputField playerInputField; // 🎯 KHUNG NHẬP TEXT
 
-    [Header("Mô phỏng người chơi (Test Default)")]
-    public string playerQuestion = "Ông có biết lũ quái vật kia từ đâu tới không?";
+    [Header("Mô phỏng người chơi (Test nhanh)")]
+    public string playerQuestion = "Truyền thuyết về vũ khí tối thượng nằm ở đâu?";
 
-    // --- BIẾN QUẢN LÝ TRẠNG THÁI ---
     private bool isPlayerNear = false;
     private bool isTalking = false;
+    private bool isTyping = false; // 🛡️ Trạng thái chặn xung đột bàn phím
     private NPC npcComponent;
 
     void Start()
     {
         npcComponent = GetComponent<NPC>();
+        if (dialoguePanel != null) dialoguePanel.SetActive(false);
 
-        if(dialoguePanel != null) dialoguePanel.SetActive(false);
+        // Giấu khung nhập text đi, chờ bấm E mới mở
+        if (playerInputField != null)
+        {
+            playerInputField.gameObject.SetActive(false);
+            // Lắng nghe sự kiện khi người chơi bấm Enter
+            playerInputField.onSubmit.AddListener(OnSubmitQuestion);
+        }
 
-        // --- CỐT TRUYỆN DÀNH RIÊNG CHO GAME CỦA BẠN ---
-        // Nếu trên Inspector chưa nhập Lore, code sẽ tự động dùng bộ Lore gốc này.
         if (loreDatabase.Count == 0)
         {
-            loreDatabase.Add(new LoreChunk { text = "Ngôi làng Chop Chop từng rất yên bình cho đến khi lũ quái vật tàn ác Xeno-Stalker từ trên trời giáng xuống tàn phá." });
-            loreDatabase.Add(new LoreChunk { text = "Chiến binh Vanguard là niềm hy vọng duy nhất của chúng ta. Chỉ có sức mạnh của Vanguard mới đấm vỡ được lớp giáp của lũ Xeno." });
-            loreDatabase.Add(new LoreChunk { text = "Ngoài lũ Xeno bay lượn trên không, quanh làng còn có những con Slime nhầy nhụa chuyên ăn cắp lương thực của dân làng." });
-            loreDatabase.Add(new LoreChunk { text = "Phía sau rặng núi có một hang động, nghe đồn đó là nơi sào huyệt sinh ra lũ quái vật." });
+          loreDatabase.Add(new LoreChunk
+			{
+			text = "Thần kiếm Moonfang được cho là đang ngủ dưới hồ Silverlake."
+			});
+
+			loreDatabase.Add(new LoreChunk
+			{
+			text = "Ngục tối Blackstone nằm sâu trong rừng Sương Mù."
+			});
+
+			loreDatabase.Add(new LoreChunk
+			{
+			text = "Hiệp sĩ Aldric từng đánh bại Rồng Đỏ bằng lòng kiên trì."
+			});
+
+			loreDatabase.Add(new LoreChunk
+			{
+			text = "Quán rượu Con Quạ Say là nơi các nhà thám hiểm thường tụ họp."
+			});
+
+			loreDatabase.Add(new LoreChunk
+			{
+			text = "Kho báu của vua Arcturus được cho là nằm phía sau Thác Trăng."
+			});
+
+			loreDatabase.Add(new LoreChunk
+			{
+			text = "Phù thủy Merrow ghét cà rốt dù chẳng ai biết lý do."
+			});
         }
 
         StartCoroutine(InitializeDatabaseVectors());
@@ -66,30 +91,78 @@ public class RagNPC : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Player"))
+        if (other.CompareTag("Player") || other.name.Contains("InteractionDetector"))
         {
             isPlayerNear = true;
-            Debug.Log("Nhấn SPACE để hỏi chuyện Trưởng Làng.");
+            // Chỉ hiện hướng dẫn nếu không đang chat và không đang gõ chữ
+            if (!isTalking && !isTyping)
+            {
+                if (dialoguePanel != null) dialoguePanel.SetActive(true);
+                if (dialogueUIText != null) dialogueUIText.text = "Thần đằng BABIBON [Nhấn E để tương tác].";
+            }
         }
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if (other.CompareTag("Player"))
+        if (other.CompareTag("Player") || other.name.Contains("InteractionDetector"))
         {
             isPlayerNear = false;
 
-            if(dialoguePanel != null) dialoguePanel.SetActive(false);
-            if(npcComponent != null) npcComponent.npcState = NPCState.Idle;
+            // Lỡ đang gõ mà bỏ chạy thì tắt khung gõ
+            if (isTyping)
+            {
+                isTyping = false;
+                if (playerInputField != null) playerInputField.gameObject.SetActive(false);
+            }
+
+            if (dialoguePanel != null) dialoguePanel.SetActive(false);
+            if (npcComponent != null) npcComponent.npcState = NPCState.Idle;
         }
     }
 
     private void Update()
     {
-        if (isPlayerNear && Input.GetKeyDown(KeyCode.P) && !isTalking)
+        // Nhận phím E CHỈ KHI đang ở gần, chưa nói chuyện, và CHƯA MỞ KHUNG GÕ CHỮ
+        if (isPlayerNear && !isTalking && !isTyping)
         {
-            StartCoroutine(ProcessRagFlow(playerQuestion));
+            if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
+            {
+                isTyping = true; // Bật khiên chặn lỗi
+
+                if (dialogueUIText != null) dialogueUIText.text =
+    "Người lữ khách muốn hỏi điều gì? Hãy nói, ta sẽ lắng nghe.";
+
+                if (playerInputField != null)
+                {
+                    playerInputField.gameObject.SetActive(true);
+                    playerInputField.ActivateInputField(); // 🎯 ÉP CHUỘT VÀO KHUNG, KHÓA BÀN PHÍM GAME
+                }
+            }
         }
+    }
+
+    // 🎯 Hàm này tự chạy khi bạn gõ xong và bấm Enter
+    private void OnSubmitQuestion(string question)
+    {
+        // Nếu lỡ bấm Enter mà chưa gõ gì -> Dẹp, trở về như cũ
+        if (string.IsNullOrWhiteSpace(question))
+        {
+            isTyping = false;
+            if (playerInputField != null) playerInputField.gameObject.SetActive(false);
+            if (dialogueUIText != null) dialogueUIText.text = "Nhấn [E] để xin 3 chữ cái từ Lốp Trưởng.";
+            return;
+        }
+
+        // Bắt đầu xử lý API
+        isTyping = false;
+        if (playerInputField != null)
+        {
+            playerInputField.text = ""; // Xóa trắng ô
+            playerInputField.gameObject.SetActive(false); // Cất ô đi
+        }
+
+        StartCoroutine(ProcessRagFlow(question));
     }
 
     IEnumerator GetEmbedding(string textToEmbed, System.Action<float[]> onSuccess)
@@ -100,7 +173,6 @@ public class RagNPC : MonoBehaviour
         }}";
 
         string requestUrl = $"{embedUrl.Trim()}?key={apiKey.Trim()}";
-
         using (UnityWebRequest req = new UnityWebRequest(requestUrl, "POST"))
         {
             req.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(jsonBody));
@@ -120,15 +192,14 @@ public class RagNPC : MonoBehaviour
     {
         foreach (var chunk in loreDatabase)
         {
-            if (chunk.vector == null || chunk.vector.Length == 0)
-            {
-                yield return StartCoroutine(GetEmbedding(chunk.text, (vector) => { chunk.vector = vector; }));
-            }
+            yield return StartCoroutine(GetEmbedding(chunk.text, (vector) => { chunk.vector = vector; }));
         }
     }
 
     float CalculateCosineSimilarity(float[] vecA, float[] vecB)
     {
+        if (vecA == null || vecB == null || vecA.Length != vecB.Length) return 0;
+
         float dotProduct = 0f, normA = 0f, normB = 0f;
         for (int i = 0; i < vecA.Length; i++)
         {
@@ -143,11 +214,11 @@ public class RagNPC : MonoBehaviour
     IEnumerator ProcessRagFlow(string question)
     {
         isTalking = true;
+        if (npcComponent != null) npcComponent.npcState = NPCState.Talk;
 
-        if(npcComponent != null) npcComponent.npcState = NPCState.Talk;
-
-        if(dialoguePanel != null) dialoguePanel.SetActive(true);
-        if(dialogueUIText != null) dialogueUIText.text = "Trưởng làng đang nhớ lại...";
+        if (dialoguePanel != null) dialoguePanel.SetActive(true);
+        if (dialogueUIText != null) dialogueUIText.text =
+    "Thần Đằng BaBiBon đang lục tìm những ký ức cổ xưa...";
 
         float[] questionVector = null;
         yield return StartCoroutine(GetEmbedding(question, (vec) => { questionVector = vec; }));
@@ -155,7 +226,9 @@ public class RagNPC : MonoBehaviour
         if (questionVector == null)
         {
             isTalking = false;
-            if(npcComponent != null) npcComponent.npcState = NPCState.Idle;
+            if (npcComponent != null) npcComponent.npcState = NPCState.Idle;
+            if (dialogueUIText != null) dialogueUIText.text =
+    "Các linh hồn cổ đại đang ngủ. Hãy thử lại sau.";
             yield break;
         }
 
@@ -172,22 +245,38 @@ public class RagNPC : MonoBehaviour
             }
         }
 
-        // --- HỆ THỐNG PROMPT ĐƯỢC TỐI ƯU HÓA CHO NHẬP VAI ---
+        // 🎭 SYSTEM PROMPT SIÊU LẦY: LỐP TRƯỞNG CHỨNG KHOÁN
         string systemPrompt = $@"
-                Ngươi là NPC Trưởng Làng trong một trò chơi sinh tồn. Ngôi làng của ngươi đang bị đe dọa.
-                Người đang nói chuyện với ngươi là chiến binh Vanguard (người chơi).
-                Hãy trả lời câu hỏi của Vanguard BẮT BUỘC DỰA TRÊN DỮ LIỆU SAU:
-                '{bestMatch.text}'
-                Quy tắc nghiêm ngặt:
-                1. Chỉ trả lời ngắn gọn trong 2-3 câu, giọng điệu khẩn khoản, già nua.
-                2. Nếu Vanguard hỏi những thứ hiện đại hoặc ngoài lề (như code, máy tính, đời thực), hãy nói: 'Ta già rồi, đầu óc lẩm cẩm, ta không hiểu ngài Vanguard đang nói gì. Xin hãy cứu làng!'.
-                3. Tuyệt đối không bịa thêm tình tiết ngoài dữ liệu được cung cấp.
-                ";
+Ngươi là Thần Đằng BaBiBon.
+
+Ngươi là một hiền giả cổ đại sống trong thế giới fantasy trung cổ.
+
+TÍNH CÁCH:
+- Hài hước.
+- Thông thái.
+- Có chút cà khịa nhẹ.
+- Nói chuyện thân thiện.
+- Không sử dụng từ hiện đại.
+- Không nhắc tới internet.
+- Không nhắc tới AI.
+- Không nhắc tới chứng khoán.
+
+NGỮ CẢNH:
+{bestMatch.text}
+
+QUY TẮC:
+- Trả lời từ 2 đến 6 câu.
+- Nếu biết câu trả lời trong ngữ cảnh thì trả lời theo ngữ cảnh.
+- Nếu không biết thì trả lời bằng một câu chuyện ngắn hoặc lời khuyên vui vẻ.
+- Luôn giữ bầu không khí phiêu lưu trung cổ.
+- Không được tự bịa các địa điểm ngoài ngữ cảnh.
+";
 
         string jsonBody = $@"{{
             ""systemInstruction"": {{ ""parts"": [{{ ""text"": ""{systemPrompt}"" }}] }},
             ""contents"": [{{ ""parts"": [{{ ""text"": ""{question}"" }}] }}]
         }}";
+
         string requestChatUrl = $"{chatUrl.Trim()}?key={apiKey.Trim()}";
 
         using (UnityWebRequest req = new UnityWebRequest(requestChatUrl, "POST"))
@@ -201,18 +290,33 @@ public class RagNPC : MonoBehaviour
             if (req.result == UnityWebRequest.Result.Success)
             {
                 GeminiResponse res = JsonUtility.FromJson<GeminiResponse>(req.downloadHandler.text);
-                if (res != null && res.candidates != null && res.candidates.Length > 0)
-                {
-                    string npcAnswer = res.candidates[0].content.parts[0].text;
-                    if(dialogueUIText != null) dialogueUIText.text = npcAnswer;
-                }
+                string npcAnswer = res.candidates[0].content.parts[0].text;
+
+                if (dialogueUIText != null) dialogueUIText.text = npcAnswer;
             }
             else
             {
-                if(dialogueUIText != null) dialogueUIText.text = "Xin lỗi Vanguard, ta đang hơi mệt... (Lỗi API)";
+                if (dialogueUIText != null) dialogueUIText.text = "ÁI chà, câu hỏi dễ vậy cũng hỏi. Về suy nghĩ thêm đi!";
             }
         }
 
         isTalking = false;
+
+        // Đặt lại trạng thái khi nói xong để chuẩn bị chat lại
+        StartCoroutine(ResetDialogueState());
+    }
+
+    // Đợi 4 giây sau khi nói xong để reset lại hướng dẫn
+    IEnumerator ResetDialogueState()
+    {
+        yield return new WaitForSeconds(15f);
+        if (isPlayerNear && !isTalking && !isTyping)
+        {
+            if (dialogueUIText != null) dialogueUIText.text = "Nhấn [E] để xin tham khảo từ thầN Đằng BaBiBon.";
+        }
+        else if (!isPlayerNear)
+        {
+            if (dialoguePanel != null) dialoguePanel.SetActive(false);
+        }
     }
 }

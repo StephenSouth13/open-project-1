@@ -1,3 +1,4 @@
+//D:\VTC_Academy\open-project-1\UOP1_Project\Assets\Scripts\Characters\NPCAudio.cs
 using UnityEngine;
 
 public class NPCAudio : CharacterAudio

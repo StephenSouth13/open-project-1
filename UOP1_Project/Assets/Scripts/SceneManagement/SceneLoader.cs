@@ -145,13 +145,28 @@ public class SceneLoader : MonoBehaviour
 				_currentlyLoadedScene.sceneReference.UnLoadScene();
 			}
 #if UNITY_EDITOR
-			else
-			{
-				//Only used when, after a "cold start", the player moves to a new scene
-				//Since the AsyncOperationHandle has not been used (the scene was already open in the editor),
-				//the scene needs to be unloaded using regular SceneManager instead of as an Addressable
-				SceneManager.UnloadSceneAsync(_currentlyLoadedScene.sceneReference.editorAsset.name);
-			}
+            else
+            {
+                //Only used when, after a "cold start", the player moves to a new scene
+                //Since the AsyncOperationHandle has not been used (the scene was already open in the editor),
+                //the scene needs to be unloaded using regular SceneManager instead of as an Addressable
+
+                // 🛡️ BĂNG KEO CỨU MẠNG TỪ ARCHITECT 🛡️
+                string sceneName = "";
+                if (_currentlyLoadedScene.sceneReference.editorAsset != null)
+                {
+                    sceneName = _currentlyLoadedScene.sceneReference.editorAsset.name;
+                }
+
+                if (!string.IsNullOrEmpty(sceneName) && SceneManager.GetSceneByName(sceneName).isLoaded)
+                {
+                    SceneManager.UnloadSceneAsync(sceneName);
+                }
+                else
+                {
+                    Debug.LogWarning($"[SceneLoader] Bỏ qua Unload vì Scene name bị rỗng hoặc chưa load.");
+                }
+            }
 #endif
 		}
 
