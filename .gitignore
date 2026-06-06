@@ -1,5 +1,157 @@
-//The purpose of this additional .gitignore is to catch files/directories to ignore in the very root folder of the .git repo
+########################################
+# Unity Generated
+########################################
 
-# Visual Studio cache directory
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+UserSettings/
+
+########################################
+# Addressables
+########################################
+
+ServerData/
+
+########################################
+# Unity Cloud Build
+########################################
+
+.cloud/
+
+########################################
+# Asset Import Pipeline
+########################################
+
+Assets/AssetStoreTools*
+
+########################################
+# Visual Studio / Rider / VS Code
+########################################
+
 .vs/
+.vscode/
+.idea/
+
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+########################################
+# OS Files
+########################################
+
+.DS_Store
+.DS_Store?
+Thumbs.db
+desktop.ini
+
+########################################
+# JetBrains Rider
+########################################
+
+.idea/
+*.sln.iml
+
+########################################
+# Crash Reports
+########################################
+
+sysinfo.txt
+
+########################################
+# Build Artifacts
+########################################
+
+*.apk
+*.aab
+*.ipa
+*.app
+*.exe
+*.x86
+*.x86_64
+
+########################################
+# Unity Cache
+########################################
+
+/Assets/StreamingAssets/aa.meta
+/Assets/StreamingAssets/aa/*
+
+########################################
+# Secrets & API Keys
+########################################
+
+.env
+.env.*
+.env.local
+
 config.json
+secret.json
+credentials.json
+
+google-services.json
+GoogleService-Info.plist
+
+firebase-config.json
+
+apikey.txt
+api_key.txt
+keys.json
+
+########################################
+# Custom Secret Folders
+########################################
+
+Secrets/
+Credentials/
+Private/
+
+########################################
+# AI / LLM Config
+########################################
+
+openai.json
+gemini.json
+claude.json
+
+llm-config.json
+rag-config.json
+
+########################################
+# Local Config
+########################################
+
+*.local.json
+*.secret.json
+
+########################################
+# Backup Files
+########################################
+
+*.bak
+*.backup
+*.old
+*.orig
+
+########################################
+# Generated Documentation
+########################################
+
+Docs/Generated/
