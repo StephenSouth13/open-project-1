@@ -86,7 +86,7 @@ public class RagNPC : MonoBehaviour
 
     private void Update()
     {
-        if (isPlayerNear && Input.GetKeyDown(KeyCode.Space) && !isTalking)
+        if (isPlayerNear && Input.GetKeyDown(KeyCode.E) && !isTalking)
         {
             StartCoroutine(ProcessRagFlow(playerQuestion));
         }
